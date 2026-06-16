@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>IoT Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    background:#111;
+    color:white;
+    text-align:center;
+    font-family:Arial;
+}
+
+.card {
+    background:#222;
+    padding:20px;
+    margin:10px;
+    border-radius:10px;
+}
+
+h1 { color: cyan; }
+</style>
+</head>
+
+<body>
+
+<h1>🌡 IoT Temperature Dashboard</h1>
+
+<div class="card">
+    <h2>Temperature: <span id="temp">--</span> °C</h2>
+    <h3 id="time">--</h3>
+</div>
+
+<div class="card">
+    <canvas id="chart"></canvas>
+</div>
+
+<script>
+console.log("Dashboard loaded ✔");
+
+const ctx = document.getElementById("chart").getContext("2d");
+
+const chart = new Chart(ctx, {
+    type: "line",
+    data: {
+        labels: [],
+        datasets: [{
+            label: "Temperature",
+            data: [],
+            borderColor: "cyan",
+            tension: 0.3
+        }]
+    },
+    options: {
+        animation: false
+    }
+});
+
+// ===================== CURRENT =====================
+async function loadCurrent() {
+    try {
+        const res = await axios.get("http://157.173.101.159:9243/api/current", {
+            params: { t: Date.now() }
+        });
+
+        console.log("CURRENT:", res.data);
+
+        if (res.data.temperature !== undefined) {
+            document.getElementById("temp").innerText = res.data.temperature;
+            document.getElementById("time").innerText = res.data.timestamp;
+        }
+
+    } catch (err) {
+        console.log("Current error:", err);
+    }
+}
+
+// ===================== HISTORY =====================
+async function loadHistory() {
+    try {
+        const res = await axios.get("http://157.173.101.159:9243/api/history", {
+            params: { t: Date.now() }
+        });
+
+        console.log("HISTORY:", res.data);
+
+        const data = res.data || [];
+
+        chart.data.labels = data.map(d => d.timestamp);
+        chart.data.datasets[0].data = data.map(d => d.temperature);
+
+        chart.update();
+
+    } catch (err) {
+        console.log("History error:", err);
+    }
+}
+
+// ===================== LOOP =====================
+function start() {
+    loadCurrent();
+    loadHistory();
+
+    setInterval(() => {
+        loadCurrent();
+        loadHistory();
+    }, 2000);
+}
+
+start();
+</script>
+
+</body>
+</html>
